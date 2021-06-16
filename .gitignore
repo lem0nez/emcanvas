@@ -1,0 +1,11 @@
+build/
+
+# Clang formatting is completely disabled.
+.clang-format
+# Contains user-specific configuration of the language server.
+.clangd
+
+.vim/
+.vimrc
+# Saved workflow session.
+.session.vim
