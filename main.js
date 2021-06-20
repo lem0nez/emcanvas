@@ -40,7 +40,7 @@ var Module = {
     canvas.addEventListener('webglcontextlost', function(element) {
       // May occur when a browser will decide to
       // free up some of shared GPU resources.
-      alert('WebGL context lost. You will need to reload the page.');
+      alert('WebGL context lost. You will need to reload the page');
     });
     return canvas;
   })(),
@@ -55,10 +55,14 @@ var Module = {
       // Not required anymore after loading the application.
       this.remove();
     });
+
+    // Occupy all viewport space by canvas.
+    canvas.width = document.documentElement.clientWidth;
+    canvas.height = document.documentElement.clientHeight;
     canvas.classList.add('shown');
   }
 };
 
 window.onerror = function() {
-  alert('Error occurred while executing the application.');
+  alert('Error occurred while executing the application');
 };

@@ -11,7 +11,16 @@
   body { background: #212121; }
 }
 
-body { margin: 0; }
+/* Force remove any borders ignoring the user's styles. */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Hide vertical and horizontal scrollbars. */
+body {
+  overflow: hidden;
+}
 
 .loader {
   /* Center image vertically and horizontally. */

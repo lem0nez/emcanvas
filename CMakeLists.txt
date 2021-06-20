@@ -24,14 +24,25 @@ endif()
 # + ---------- +
 
 set(SOURCES
+  src/algorithms.cpp
+  src/app.cpp
+  src/brush.cpp
   src/main.cpp
 )
 
 add_executable(canvas ${SOURCES})
 set(CMAKE_EXECUTABLE_SUFFIX .html)
-set_target_properties(canvas PROPERTIES
-    LINK_DEPENDS "${CMAKE_SOURCE_DIR}/index.html"
-    LINK_FLAGS "--shell-file \"${CMAKE_SOURCE_DIR}/index.html\" -s USE_SDL=2")
+
+string(CONCAT LINK_FLAGS
+    "--shell-file \"${CMAKE_SOURCE_DIR}/index.html\" "
+    "--preload-file \"${CMAKE_SOURCE_DIR}/assets/app@/\" "
+    "-s USE_SDL=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='[\"png\"]' "
+    # Multiply the total available memory by 3 to make
+    # possible creation of SDL renderer on 4K displays.
+    "-s TOTAL_MEMORY=48MB")
+set_target_properties(canvas PROPERTIES LINK_DEPENDS
+    "${CMAKE_SOURCE_DIR}/index.html;${CMAKE_SOURCE_DIR}/assets/app"
+    LINK_FLAGS "${LINK_FLAGS}")
 
 # + --------------- +
 # | Dependent files |
