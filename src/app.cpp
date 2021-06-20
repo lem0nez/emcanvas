@@ -60,7 +60,7 @@ App::App(): m_dark_scheme_preferred(is_dark_scheme_preferred()),
 
   m_renderer = shared_ptr<SDL_Renderer>(
       // Passing -1 to initialize the first renderer.
-      SDL_CreateRenderer(m_win.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC),
+      SDL_CreateRenderer(m_win.get(), -1, SDL_RENDERER_ACCELERATED),
       SDL_DestroyRenderer);
   if (!m_renderer) {
     cerr << "Couldn't create renderer: " << SDL_GetError() << endl;
