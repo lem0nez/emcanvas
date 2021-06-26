@@ -19,11 +19,10 @@ jobs:
       - name: Activate SDK
         run: emsdk/emsdk activate latest
 
-      - name: Setup Environment
-        run: source emsdk/emsdk_env.sh
-
       - name: Configure CMake
-        run: emcmake cmake . -DCMAKE_BUILD_TYPE=Release
+        run: |
+          source emsdk/emsdk_env.sh
+          emcmake cmake . -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: cmake --build .
