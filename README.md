@@ -1,3 +1,5 @@
+![Build status](https://github.com/lem0nez/emcanvas/workflows/CMake/badge.svg)
+
 # Canvas
 A simple web application, written in modern C++17. You can use the left mouse
 button, finger or any part of your body to draw. Just amazing!

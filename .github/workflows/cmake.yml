@@ -1,0 +1,29 @@
+name: CMake
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Canvas
+        uses: actions/checkout@v2
+
+      - name: Checkout Emscripten
+        uses: actions/checkout@v2
+        with:
+          repository: emscripten-core/emsdk
+          path: emsdk
+
+      - name: Install SDK
+        run: emsdk/emsdk install latest
+
+      - name: Activate SDK
+        run: emsdk/emsdk activate latest
+
+      - name: Setup Environment
+        run: source emsdk/emsdk_env.sh
+
+      - name: Configure CMake
+        run: emcmake cmake . -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build .
