@@ -16,13 +16,14 @@ public:
     LIGHT
   };
 
-  Brush() = default;
   explicit Brush(Color);
-
   void set_color(Color);
   void draw(std::shared_ptr<SDL_Surface> dest, const SDL_Point& pos);
 
 private:
+  static constexpr auto BASE_BRUSH_SIZE = 10;
+
+  const int m_size;
   std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)>
       m_brushes{nullptr, SDL_FreeSurface};
   // Points to the selected brush in surface.

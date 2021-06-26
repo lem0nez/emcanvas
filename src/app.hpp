@@ -17,16 +17,20 @@
 
 class App {
 public:
+  // Maximum ratio between physical and logical pixel sizes.
+  static constexpr auto MAX_PIXEL_RATIO = 2.0;
+
   App();
 
   // Passing 0 gives control over the frame rate to browser (that
   // makes animations smoother) and 1 to simulate infinity loop.
   inline void exec() { emscripten_set_main_loop_arg(call_loop, this, 0, 1); };
-  [[nodiscard]] inline auto get_status() const { return m_status; }
-
   void clear_drawing_surface();
   inline void set_brush_color(const Brush::Color color)
-      { m_brush.set_color(color); }
+      { m_brush->set_color(color); }
+
+  [[nodiscard]] inline auto get_status() const { return m_status; }
+  [[nodiscard]] static auto get_pixel_ratio() -> double;
 
 private:
   // Using wrapper around the main loop function
@@ -56,7 +60,7 @@ private:
   SDL_Event m_last_event{};
   bool m_mouse_left_button_pressed{};
 
-  Brush m_brush;
+  std::unique_ptr<Brush> m_brush;
   // Used to connect two points as SDL's events handler
   // isn't so fast to detect mouse shift by every pixel.
   SDL_Point m_last_point{-1, -1};

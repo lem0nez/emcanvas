@@ -1,6 +1,7 @@
 // Copyright © 2021 Nikita Dudko. All rights reserved.
 // Licensed under the Apache License, Version 2.0
 
+#include <algorithm>
 #include <cstdlib>
 #include <emscripten/html5.h>
 #include <iostream>
@@ -94,8 +95,8 @@ App::App(): m_dark_scheme_preferred(is_dark_scheme_preferred()),
   clear_drawing_surface();
 
   try {
-    m_brush = Brush(m_dark_scheme_preferred ?
-                    Brush::Color::LIGHT : Brush::Color::DARK);
+    m_brush = make_unique<Brush>(
+        m_dark_scheme_preferred ? Brush::Color::LIGHT : Brush::Color::DARK);
   } catch (const exception& e) {
     cerr << "Couldn't prepare brush: " << e.what() << endl;
     return;
@@ -144,14 +145,14 @@ void App::handle_events() {
           mouse_pos.x = m_last_event.motion.x;
           mouse_pos.y = m_last_event.motion.y;
         }
-        m_brush.draw(m_drawing_surface, mouse_pos);
+        m_brush->draw(m_drawing_surface, mouse_pos);
 
         // Should be the current point connected with previous?
         if (m_last_point.x != -1) {
           const auto points_between =
               Algorithms::get_line_points(m_last_point, mouse_pos, true);
           for (const auto& p : points_between) {
-            m_brush.draw(m_drawing_surface, p);
+            m_brush->draw(m_drawing_surface, p);
           }
         }
         m_last_point = mouse_pos;
@@ -178,4 +179,10 @@ void App::clear_drawing_surface() {
   SDL_FillRect(m_drawing_surface.get(), nullptr, mapped_color);
   SDL_UpdateTexture(m_drawing_texture.get(), nullptr,
       m_drawing_surface->pixels, m_drawing_surface->pitch);
+}
+
+auto App::get_pixel_ratio() -> double {
+  static const auto ratio =
+      min(emscripten_get_device_pixel_ratio(), MAX_PIXEL_RATIO);
+  return ratio;
 }

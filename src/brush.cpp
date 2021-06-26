@@ -4,11 +4,14 @@
 #include <stdexcept>
 #include <SDL2/SDL_image.h>
 
+#include "app.hpp"
 #include "brush.hpp"
 
 using namespace std;
 
-Brush::Brush(const Color t_color) {
+Brush::Brush(const Color t_color):
+    m_size(static_cast<int>(BASE_BRUSH_SIZE * App::get_pixel_ratio())) {
+
   m_brushes.reset(IMG_Load("brushes.png"));
   if (!m_brushes) {
     throw runtime_error(IMG_GetError());
@@ -27,8 +30,8 @@ void Brush::set_color(const Color t_color) {
 
 void Brush::draw(shared_ptr<SDL_Surface> t_dest, const SDL_Point& t_pos) {
   SDL_Rect dest_rect{
-    t_pos.x - m_brush_rect.w / 2, t_pos.y - m_brush_rect.h / 2,
-    m_brush_rect.w, m_brush_rect.h
+    t_pos.x - m_size / 2, t_pos.y - m_size / 2,
+    m_size, m_size
   };
-  SDL_BlitSurface(m_brushes.get(), &m_brush_rect, t_dest.get(), &dest_rect);
+  SDL_BlitScaled(m_brushes.get(), &m_brush_rect, t_dest.get(), &dest_rect);
 }

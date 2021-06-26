@@ -22,20 +22,13 @@ function writeLog(level, text) {
 }
 
 var Module = {
-  print: function(text) {
-    if (arguments.length > 1) {
-      text = Array.prototype.slice.call(arguments).join(' ');
-    }
+  'print': function(text) {
     writeLog('I', text);
   },
-  printErr: function(text) {
-    if (arguments.length > 1) {
-      text = Array.prototype.slice.call(arguments).join(' ');
-    }
+  'printErr': function(text) {
     writeLog('E', text);
   },
-
-  canvas: (function() {
+  'canvas': (function() {
     var canvas = document.getElementById('canvas');
     canvas.addEventListener('webglcontextlost', function(element) {
       // May occur when a browser will decide to
@@ -44,11 +37,17 @@ var Module = {
     });
     return canvas;
   })(),
-  monitorRunDependencies: function(count) {
-    if (count != 0) {
-      return;
-    }
 
+  // Set to false as the atexit functions should be
+  // called to clean up all initialized SDL subsystems.
+  'noExitRuntime': false,
+  /*
+   * Main function will be called manually, because the onRuntimeInitialized
+   * callback executes JS code IN PARALLEL with (not BEFORE) the main function
+   * execution.
+   */
+  'noInitialRun': true,
+  'onRuntimeInitialized': function() {
     var loader = document.getElementById('loader');
     loader.classList.add('hidden');
     loader.addEventListener('transitionend', function() {
@@ -56,10 +55,23 @@ var Module = {
       this.remove();
     });
 
-    // Occupy all viewport space by canvas.
+    var px_ratio = window.devicePixelRatio || 1.0;
+    // Scrollbars aren't counted as they are hidden using CSS.
+    var width = document.documentElement.clientWidth;
+    var scale = width / (width * px_ratio);
+
+    var viewport = document.querySelector('meta[name=viewport]');
+    // Adapt viewport scale to match the physical screen size.
+    viewport.setAttribute('content',
+        'width=device-width, user-scalable=no, initial-scale=' + scale);
+
+    // Occupy all viewport space by canvas. Don't use the previously
+    // stored width as value was changed after changing the viewport scale.
     canvas.width = document.documentElement.clientWidth;
     canvas.height = document.documentElement.clientHeight;
     canvas.classList.add('shown');
+
+    callMain(arguments);
   }
 };
 

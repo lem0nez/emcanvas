@@ -9,7 +9,7 @@
 class Algorithms {
 public:
   // Bresenham's line algorithm.
-  static auto get_line_points(
+  [[nodiscard]] static auto get_line_points(
       const SDL_Point& first_point, const SDL_Point& last_point,
       bool exclude_passed = false) -> std::deque<SDL_Point>;
 };

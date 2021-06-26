@@ -1,6 +1,6 @@
 # Canvas
 A simple web application, written in modern C++17. You can use the left mouse
-button, finger (on touchscreens) or any part of your body to draw. Just amazing!
+button, finger or any part of your body to draw. Just amazing!
 
 ## Build
 You need the CMake version at least **3.18** and Emscripten toolchain version at
