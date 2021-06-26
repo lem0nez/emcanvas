@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <emscripten/html5.h>
 #include <iostream>
 
 #include <SDL2/SDL.h>
@@ -18,7 +17,7 @@ using namespace std;
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 EM_JS(bool, is_dark_scheme_preferred, (), {
   return window.matchMedia &&
-         window.matchMedia("(prefers-color-scheme: dark)").matches;
+         window.matchMedia('(prefers-color-scheme: dark)').matches;
 });
 
 App::App(): m_dark_scheme_preferred(is_dark_scheme_preferred()),
@@ -68,6 +67,8 @@ App::App(): m_dark_scheme_preferred(is_dark_scheme_preferred()),
     return;
   }
 
+  m_visible_drawing_area = {0, 0, win_width, win_height};
+
   unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)>
       win_surface(SDL_GetWindowSurface(m_win.get()), SDL_FreeSurface);
   if (!win_surface) {
@@ -102,6 +103,9 @@ App::App(): m_dark_scheme_preferred(is_dark_scheme_preferred()),
     return;
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+  emscripten_set_resize_callback(
+      EMSCRIPTEN_EVENT_TARGET_WINDOW, this, false, call_resizer);
   m_status = EXIT_SUCCESS;
 }
 
@@ -110,7 +114,8 @@ void App::loop() {
 
   handle_events();
 
-  SDL_RenderCopy(m_renderer.get(), m_drawing_texture.get(), nullptr, nullptr);
+  SDL_RenderCopy(m_renderer.get(), m_drawing_texture.get(),
+      &m_visible_drawing_area, nullptr);
   SDL_RenderPresent(m_renderer.get());
 }
 
@@ -145,14 +150,14 @@ void App::handle_events() {
           mouse_pos.x = m_last_event.motion.x;
           mouse_pos.y = m_last_event.motion.y;
         }
-        m_brush->draw(m_drawing_surface, mouse_pos);
+        m_brush->draw(*m_drawing_surface, mouse_pos);
 
         // Should be the current point connected with previous?
         if (m_last_point.x != -1) {
           const auto points_between =
               Algorithms::get_line_points(m_last_point, mouse_pos, true);
           for (const auto& p : points_between) {
-            m_brush->draw(m_drawing_surface, p);
+            m_brush->draw(*m_drawing_surface, p);
           }
         }
         m_last_point = mouse_pos;
@@ -170,15 +175,54 @@ void App::handle_events() {
   }
 }
 
-void App::clear_drawing_surface() {
-  const auto background =
-      m_dark_scheme_preferred ? BACKGROUND_DARK : BACKGROUND_LIGHT;
-  const auto mapped_color = SDL_MapRGBA(m_drawing_surface->format,
-      background.r, background.g, background.b, background.a);
+auto App::call_resizer(const int /* event_type */,
+    const EmscriptenUiEvent* /* event */, void* t_app) -> EM_BOOL {
+  static_cast<App*>(t_app)->resize(
+      // Don't use members of the event object,
+      // because they are provide incorrect values.
+      EM_ASM_INT({ return document.documentElement.clientWidth; }), // NOLINT
+      EM_ASM_INT({ return document.documentElement.clientHeight; })); // NOLINT
+  return EM_TRUE;
+}
 
-  SDL_FillRect(m_drawing_surface.get(), nullptr, mapped_color);
+void App::resize(const int t_width, const int t_height) {
+  emscripten_set_canvas_element_size("canvas", t_width, t_height);
+  SDL_SetWindowSize(m_win.get(), t_width, t_height);
+  m_visible_drawing_area = {0, 0, t_width, t_height};
+
+  // The drawing surface can only be made larger (to preserve all drawn items).
+  if (t_width <= m_drawing_surface->w && t_height <= m_drawing_surface->h) {
+    return;
+  }
+
+  const auto
+      surface_width = max(t_width, m_drawing_surface->w),
+      surface_height = max(t_height, m_drawing_surface->h);
+
+  auto* new_surface = SDL_CreateRGBSurface(0U,
+      surface_width, surface_height, m_drawing_surface->format->BitsPerPixel,
+      m_drawing_surface->format->Rmask, m_drawing_surface->format->Gmask,
+      m_drawing_surface->format->Bmask, m_drawing_surface->format->Amask);
+  clear_surface(*new_surface);
+  SDL_BlitSurface(m_drawing_surface.get(), nullptr, new_surface, nullptr);
+
+  m_drawing_surface.reset(new_surface, SDL_FreeSurface);
+  m_drawing_texture.reset(SDL_CreateTextureFromSurface(
+      m_renderer.get(), m_drawing_surface.get()));
+}
+
+void App::clear_drawing_surface() {
+  clear_surface(*m_drawing_surface);
   SDL_UpdateTexture(m_drawing_texture.get(), nullptr,
       m_drawing_surface->pixels, m_drawing_surface->pitch);
+}
+
+void App::clear_surface(SDL_Surface& t_surface) const {
+  const auto background =
+      m_dark_scheme_preferred ? BACKGROUND_DARK : BACKGROUND_LIGHT;
+  const auto mapped_color = SDL_MapRGBA(t_surface.format,
+      background.r, background.g, background.b, background.a);
+  SDL_FillRect(&t_surface, nullptr, mapped_color);
 }
 
 auto App::get_pixel_ratio() -> double {

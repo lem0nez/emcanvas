@@ -18,7 +18,7 @@ public:
 
   explicit Brush(Color);
   void set_color(Color);
-  void draw(std::shared_ptr<SDL_Surface> dest, const SDL_Point& pos);
+  void draw(SDL_Surface& dest, const SDL_Point& pos);
 
 private:
   static constexpr auto BASE_BRUSH_SIZE = 10;

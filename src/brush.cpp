@@ -23,15 +23,16 @@ Brush::Brush(const Color t_color):
 
 void Brush::set_color(const Color t_color) {
   m_brush_rect = {
+    // Each brush is in a square.
     static_cast<int>(t_color) * m_brushes->h, 0,
     m_brushes->h, m_brushes->h
   };
 }
 
-void Brush::draw(shared_ptr<SDL_Surface> t_dest, const SDL_Point& t_pos) {
+void Brush::draw(SDL_Surface& t_dest, const SDL_Point& t_pos) {
   SDL_Rect dest_rect{
     t_pos.x - m_size / 2, t_pos.y - m_size / 2,
     m_size, m_size
   };
-  SDL_BlitScaled(m_brushes.get(), &m_brush_rect, t_dest.get(), &dest_rect);
+  SDL_BlitScaled(m_brushes.get(), &m_brush_rect, &t_dest, &dest_rect);
 }

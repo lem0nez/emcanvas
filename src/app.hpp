@@ -3,8 +3,10 @@
 
 #pragma once
 
-#include <emscripten.h>
 #include <memory>
+
+#include <emscripten.h>
+#include <emscripten/html5.h>
 
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_pixels.h>
@@ -42,6 +44,12 @@ private:
   void loop();
   void handle_events();
 
+  static auto call_resizer(
+      int event_type, const EmscriptenUiEvent* event, void* app) -> EM_BOOL;
+  void resize(int width, int height);
+
+  void clear_surface(SDL_Surface&) const;
+
   static constexpr SDL_Color
       BACKGROUND_LIGHT{0xEEU, 0xEEU, 0xEEU, SDL_ALPHA_OPAQUE},
       BACKGROUND_DARK{0x21U, 0x21U, 0x21U, SDL_ALPHA_OPAQUE};
@@ -53,6 +61,7 @@ private:
       m_win{nullptr, SDL_DestroyWindow};
   std::shared_ptr<SDL_Renderer> m_renderer;
 
+  SDL_Rect m_visible_drawing_area{};
   std::shared_ptr<SDL_Surface> m_drawing_surface;
   std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)>
       m_drawing_texture{nullptr, SDL_DestroyTexture};
@@ -60,6 +69,7 @@ private:
   SDL_Event m_last_event{};
   bool m_mouse_left_button_pressed{};
 
+  // Using pointer, because the constructor call must be caught.
   std::unique_ptr<Brush> m_brush;
   // Used to connect two points as SDL's events handler
   // isn't so fast to detect mouse shift by every pixel.
