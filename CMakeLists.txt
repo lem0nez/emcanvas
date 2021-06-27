@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 project(canvas
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "\
 Web implementation of a simple canvas, written \
 using the SDL 2.0 library and Emscripten toolchain"
