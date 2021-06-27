@@ -8,6 +8,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_error.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 
 #include "algorithms.hpp"
 #include "app.hpp"
@@ -22,23 +23,7 @@ EM_JS(bool, is_dark_scheme_preferred, (), {
 
 App::App(): m_dark_scheme_preferred(is_dark_scheme_preferred()),
             m_status(EXIT_FAILURE) {
-  // Event handling is initialized along with video.
-  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-    cerr << "Couldn't initialize the SDL library: " << SDL_GetError() << endl;
-    return;
-  }
-  if (atexit(SDL_Quit) != 0) {
-    cerr << "Couldn't register the SDL cleanup function" << endl;
-    return;
-  }
-
-  if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) == 0) {
-    cerr << "Couldn't initialize the SDL_image library: " <<
-            IMG_GetError() << endl;
-    return;
-  }
-  if (atexit(IMG_Quit) != 0) {
-    cerr << "Couldn't register the SDL_image cleanup function" << endl;
+  if (!init_subsystems()) {
     return;
   }
 
@@ -103,10 +88,123 @@ App::App(): m_dark_scheme_preferred(is_dark_scheme_preferred()),
     return;
   }
 
+  if (!load_startup_msg()) {
+    return;
+  }
+
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
   emscripten_set_resize_callback(
       EMSCRIPTEN_EVENT_TARGET_WINDOW, this, false, call_resizer);
   m_status = EXIT_SUCCESS;
+}
+
+auto App::init_subsystems() -> bool {
+  // Event handling is initialized along with video.
+  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    cerr << "Couldn't initialize the SDL library: " << SDL_GetError() << endl;
+    return false;
+  }
+  if (atexit(SDL_Quit) != 0) {
+    cerr << "Couldn't register the SDL cleanup function" << endl;
+    return false;
+  }
+
+  if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) == 0) {
+    cerr << "Couldn't initialize the SDL_image library: " <<
+            IMG_GetError() << endl;
+    return false;
+  }
+  if (atexit(IMG_Quit) != 0) {
+    cerr << "Couldn't register the SDL_image cleanup function" << endl;
+    return false;
+  }
+
+  if (TTF_Init() != 0) {
+    cerr << "Couldn't initialize the SDL_ttf library: " <<
+            TTF_GetError() << endl;
+    return false;
+  }
+  if (atexit(TTF_Quit) != 0) {
+    cerr << "Couldn't register the SDL_ttf cleanup function" << endl;
+    return false;
+  }
+
+  return true;
+}
+
+auto App::load_startup_msg() -> bool {
+  constexpr auto PT_SIZE = 72;
+  constexpr auto MESSAGE = "Just a canvas.";
+  constexpr SDL_Color
+      LIGHT_COLOR = BACKGROUND_LIGHT,
+      DARK_COLOR{0x42U, 0x42U, 0x42U, SDL_ALPHA_OPAQUE};
+
+  unique_ptr<TTF_Font, decltype(&TTF_CloseFont)>
+      font{TTF_OpenFont("quicksand-light.ttf", PT_SIZE), TTF_CloseFont};
+  if (!font) {
+    cerr << "Couldn't load font of the startup message: " <<
+            TTF_GetError() << endl;
+    return false;
+  }
+
+  const auto color = m_dark_scheme_preferred ? LIGHT_COLOR : DARK_COLOR;
+  unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> surface
+      {TTF_RenderText_Blended(font.get(), MESSAGE, color), SDL_FreeSurface};
+  if (!surface) {
+    cerr << "Couldn't render the startup message: " << TTF_GetError() << endl;
+    return false;
+  }
+
+  m_startup_msg.reset(
+      SDL_CreateTextureFromSurface(m_renderer.get(), surface.get()));
+  if (!m_startup_msg) {
+    cerr << "Couldn't create texture of the startup message: " <<
+            SDL_GetError() << endl;
+    return false;
+  }
+
+  m_startup_msg_dest = {
+    m_visible_drawing_area.w / 2 - surface->w / 2,
+    m_visible_drawing_area.h / 2 - surface->h / 2,
+    surface->w, surface->h
+  };
+  return true;
+}
+
+void App::hide_startup_msg() {
+  // Is the startup message hidden?
+  if (!m_startup_msg) {
+    return;
+  }
+
+  Uint8 alpha = 0U;
+  SDL_GetTextureAlphaMod(m_startup_msg.get(), &alpha);
+  // Is the hide process not started?
+  if (alpha == SDL_ALPHA_OPAQUE) {
+    // Initiate the hide process.
+    SDL_SetTextureAlphaMod(m_startup_msg.get(),
+                           alpha - HIDE_STARTUP_MSG_ALPHA_STEP);
+  }
+}
+
+void App::manage_startup_msg() {
+  Uint8 alpha = 0U;
+  SDL_GetTextureAlphaMod(m_startup_msg.get(), &alpha);
+
+  // Nothing to manage?
+  if (alpha == SDL_ALPHA_OPAQUE) {
+    return;
+  }
+
+  // Is it end of the hide process?
+  if (alpha < HIDE_STARTUP_MSG_ALPHA_STEP) {
+    // Completely remove the startup message.
+    m_startup_msg.reset();
+  } else {
+    // Increase transprence more.
+    SDL_SetTextureAlphaMod(m_startup_msg.get(),
+                           alpha - HIDE_STARTUP_MSG_ALPHA_STEP);
+  }
 }
 
 void App::loop() {
@@ -115,7 +213,12 @@ void App::loop() {
   handle_events();
 
   SDL_RenderCopy(m_renderer.get(), m_drawing_texture.get(),
-      &m_visible_drawing_area, nullptr);
+                 &m_visible_drawing_area, nullptr);
+  if (m_startup_msg) {
+    manage_startup_msg();
+    SDL_RenderCopy(m_renderer.get(), m_startup_msg.get(),
+                   nullptr, &m_startup_msg_dest);
+  }
   SDL_RenderPresent(m_renderer.get());
 }
 
@@ -144,6 +247,7 @@ void App::handle_events() {
         if (!m_mouse_left_button_pressed) {
           break;
         }
+        hide_startup_msg();
 
         // Did motion initiated the event?
         if (mouse_pos.x == -1) {
@@ -186,12 +290,18 @@ auto App::call_resizer(const int /* event_type */,
 }
 
 void App::resize(const int t_width, const int t_height) {
+  if (t_width == m_visible_drawing_area.w &&
+      t_height == m_visible_drawing_area.h) {
+    return;
+  }
+  hide_startup_msg();
+
   emscripten_set_canvas_element_size("canvas", t_width, t_height);
   SDL_SetWindowSize(m_win.get(), t_width, t_height);
   m_visible_drawing_area = {0, 0, t_width, t_height};
 
   // The drawing surface can only be made larger (to preserve all drawn items).
-  if (t_width <= m_drawing_surface->w && t_height <= m_drawing_surface->h) {
+  if (t_width < m_drawing_surface->w && t_height < m_drawing_surface->h) {
     return;
   }
 

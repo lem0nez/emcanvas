@@ -35,6 +35,18 @@ public:
   [[nodiscard]] static auto get_pixel_ratio() -> double;
 
 private:
+  // At every iteration (while hiding) the alpha color value
+  // of the startup message will be decreased by this step.
+  static constexpr Uint8 HIDE_STARTUP_MSG_ALPHA_STEP = 10U;
+
+  static auto init_subsystems() -> bool;
+
+  auto load_startup_msg() -> bool;
+  // Initiates the hide process.
+  void hide_startup_msg();
+  // Increases transparency of the message.
+  void manage_startup_msg();
+
   // Using wrapper around the main loop function
   // as Emscripten takes only static functions.
   static inline void call_loop(void* instance)
@@ -64,7 +76,9 @@ private:
   SDL_Rect m_visible_drawing_area{};
   std::shared_ptr<SDL_Surface> m_drawing_surface;
   std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)>
-      m_drawing_texture{nullptr, SDL_DestroyTexture};
+      m_drawing_texture{nullptr, SDL_DestroyTexture},
+      m_startup_msg{nullptr, SDL_DestroyTexture};
+  SDL_Rect m_startup_msg_dest{};
 
   SDL_Event m_last_event{};
   bool m_mouse_left_button_pressed{};

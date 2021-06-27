@@ -33,8 +33,9 @@ set(SOURCES
 add_executable(canvas ${SOURCES})
 set(CMAKE_EXECUTABLE_SUFFIX .html)
 
-set(COMPILE_FLAGS
-    "-s USE_SDL=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='[\"png\"]'")
+string(CONCAT COMPILE_FLAGS
+    "-s USE_SDL=2 -s USE_SDL_TTF=2 "
+    "-s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='[\"png\"]'")
 string(CONCAT LINK_FLAGS
     "--shell-file \"${CMAKE_SOURCE_DIR}/index.html\" "
     "--preload-file \"${CMAKE_SOURCE_DIR}/assets/app@/\" "
