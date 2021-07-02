@@ -8,6 +8,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_error.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_ttf.h>
 
 #include "algorithms.hpp"
@@ -61,21 +62,11 @@ App::App(): m_dark_scheme_preferred(is_dark_scheme_preferred()),
     return;
   }
 
-  m_drawing_surface = shared_ptr<SDL_Surface>(SDL_CreateRGBSurface(
-      // Passing no flags as their are unused.
-      0U, win_width, win_height, win_surface->format->BitsPerPixel,
-      win_surface->format->Rmask, win_surface->format->Gmask,
-      win_surface->format->Bmask, win_surface->format->Amask), SDL_FreeSurface);
+  m_drawing_surface = shared_ptr<SDL_Surface>(
+      create_surface(win_width, win_height, *win_surface->format),
+      SDL_FreeSurface);
   if (!m_drawing_surface) {
     cerr << "Couldn't create the drawing surface: " << SDL_GetError() << endl;
-    return;
-  }
-
-  m_drawing_texture.reset(
-      SDL_CreateTextureFromSurface(m_renderer.get(), m_drawing_surface.get()));
-  if (!m_drawing_texture) {
-    cerr << "Couldn't create texture from the drawing surface: " <<
-            SDL_GetError() << endl;
     return;
   }
   clear_drawing_surface();
@@ -177,31 +168,35 @@ void App::hide_startup_msg() {
     return;
   }
 
-  Uint8 alpha = 0U;
-  SDL_GetTextureAlphaMod(m_startup_msg.get(), &alpha);
   // Is the hide process not started?
-  if (alpha == SDL_ALPHA_OPAQUE) {
+  if (m_startup_msg_last_upd == 0U) {
     // Initiate the hide process.
-    SDL_SetTextureAlphaMod(m_startup_msg.get(),
-                           alpha - HIDE_STARTUP_MSG_ALPHA_STEP);
+    m_startup_msg_last_upd = 1U;
   }
 }
 
 void App::manage_startup_msg() {
-  Uint8 alpha = 0U;
-  SDL_GetTextureAlphaMod(m_startup_msg.get(), &alpha);
-
   // Nothing to manage?
-  if (alpha == SDL_ALPHA_OPAQUE) {
+  if (m_startup_msg_last_upd == 0U) {
     return;
   }
+
+  const auto ticks = SDL_GetTicks();
+  if (!SDL_TICKS_PASSED(ticks,
+       m_startup_msg_last_upd + HIDE_STARTUP_MSG_INTERVAL_MS)) {
+    return;
+  }
+  m_startup_msg_last_upd = ticks;
+
+  Uint8 alpha = 0U;
+  SDL_GetTextureAlphaMod(m_startup_msg.get(), &alpha);
 
   // Is it end of the hide process?
   if (alpha < HIDE_STARTUP_MSG_ALPHA_STEP) {
     // Completely remove the startup message.
     m_startup_msg.reset();
   } else {
-    // Increase transprence more.
+    // Increase transparency more.
     SDL_SetTextureAlphaMod(m_startup_msg.get(),
                            alpha - HIDE_STARTUP_MSG_ALPHA_STEP);
   }
@@ -309,10 +304,8 @@ void App::resize(const int t_width, const int t_height) {
       surface_width = max(t_width, m_drawing_surface->w),
       surface_height = max(t_height, m_drawing_surface->h);
 
-  auto* new_surface = SDL_CreateRGBSurface(0U,
-      surface_width, surface_height, m_drawing_surface->format->BitsPerPixel,
-      m_drawing_surface->format->Rmask, m_drawing_surface->format->Gmask,
-      m_drawing_surface->format->Bmask, m_drawing_surface->format->Amask);
+  auto* new_surface = create_surface(
+      surface_width, surface_height, *m_drawing_surface->format);
   clear_surface(*new_surface);
   SDL_BlitSurface(m_drawing_surface.get(), nullptr, new_surface, nullptr);
 
@@ -322,9 +315,14 @@ void App::resize(const int t_width, const int t_height) {
 }
 
 void App::clear_drawing_surface() {
-  clear_surface(*m_drawing_surface);
-  SDL_UpdateTexture(m_drawing_texture.get(), nullptr,
-      m_drawing_surface->pixels, m_drawing_surface->pitch);
+  auto *new_surface = create_surface(
+      m_visible_drawing_area.w, m_visible_drawing_area.h,
+      *m_drawing_surface->format);
+  clear_surface(*new_surface);
+
+  m_drawing_surface.reset(new_surface, SDL_FreeSurface);
+  m_drawing_texture.reset(
+      SDL_CreateTextureFromSurface(m_renderer.get(), m_drawing_surface.get()));
 }
 
 void App::clear_surface(SDL_Surface& t_surface) const {

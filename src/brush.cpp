@@ -9,15 +9,16 @@
 
 using namespace std;
 
-Brush::Brush(const Color t_color):
-    m_size(static_cast<int>(BASE_BRUSH_SIZE * App::get_pixel_ratio())) {
-
+Brush::Brush(const Color t_color) {
   m_brushes.reset(IMG_Load("brushes.png"));
   if (!m_brushes) {
     throw runtime_error(IMG_GetError());
   }
+
   // Make drawing of transparent pixels faster.
   SDL_SetSurfaceRLE(m_brushes.get(), 1);
+  m_size = static_cast<int>(
+      (m_brushes->h / App::MAX_PIXEL_RATIO) * App::get_pixel_ratio());
   set_color(t_color);
 }
 
